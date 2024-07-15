@@ -52,7 +52,7 @@
 </head>
 
 <body>
-    <div id="init" style="display: block;">
+    <div id="init" style="display: none;">
         <h1>Initialize</h1>
 
         <div class="instructions">
@@ -86,19 +86,21 @@
         <button onclick="initialize()" class="button">Set Up</button>
     </div>
 
-    <div id="welcome">
+    <div id="welcome" style="display: none;">
         <h1>Welcome to Secure Markdown Editor</h1>
         <p>Enter your password to decrypt and load your data:</p>
         <input type="password" id="password">
         <button onclick="decrypt()" class="button">Decrypt</button>
     </div>
 
-    <div id="editor">
+    <div id="editor" style="display: block;">
         <h1>Secure Markdown Editor</h1>
         <textarea id="markdown"></textarea>
         <button onclick="updatePreview()" class="button">Update Preview</button>
         <button onclick="save()" class="button">Save</button>
-        <div id="preview"></div>
+        <div id="preview"><h1>testing 123</h1>
+<p>YO</p>
+</div>
     </div>
 
     <script>
