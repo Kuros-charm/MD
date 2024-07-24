@@ -1,1 +1,412 @@
-undefined
+<html><head>
+
+    <script>
+        const initialSnapShot = {}
+
+
+        /**
+         * 
+         * Crypto
+         * 
+        */
+        const cryptoUtils = {
+            // Function to derive a key from a passphrase
+            async deriveKey(passphrase, salt, iterations = 100000) {
+                const encoder = new TextEncoder();
+                const passphraseBuffer = encoder.encode(passphrase);
+                const saltBuffer = encoder.encode(salt);
+
+                const keyMaterial = await window.crypto.subtle.importKey(
+                    "raw",
+                    passphraseBuffer,
+                    { name: "PBKDF2" },
+                    false,
+                    ["deriveKey"]
+                );
+
+                return window.crypto.subtle.deriveKey(
+                    {
+                        name: "PBKDF2",
+                        salt: saltBuffer,
+                        iterations: iterations,
+                        hash: "SHA-256",
+                    },
+                    keyMaterial,
+                    { name: "AES-GCM", length: 256 },
+                    false,
+                    ["encrypt", "decrypt"]
+                );
+            },
+
+            // Function to encrypt text
+            async encrypt(text, passphrase) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const key = await this.deriveKey(passphrase, salt);
+
+                const encrypted = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv },
+                    key,
+                    data
+                );
+
+                const encryptedArray = new Uint8Array(encrypted);
+                const resultArray = new Uint8Array(salt.length + iv.length + encryptedArray.length);
+                resultArray.set(salt, 0);
+                resultArray.set(iv, salt.length);
+                resultArray.set(encryptedArray, salt.length + iv.length);
+
+                return btoa(String.fromCharCode.apply(null, resultArray));
+            },
+
+            // Function to decrypt text
+            async decrypt(encryptedText, passphrase) {
+                const encryptedArray = new Uint8Array(atob(encryptedText).split('').map(char => char.charCodeAt(0)));
+
+                const salt = encryptedArray.slice(0, 16);
+                const iv = encryptedArray.slice(16, 28);
+                const data = encryptedArray.slice(28);
+
+                const key = await this.deriveKey(passphrase, salt);
+
+                const decrypted = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    key,
+                    data
+                );
+
+                const decoder = new TextDecoder();
+                return decoder.decode(decrypted);
+            }
+        };
+
+
+
+        const githubUtils = {
+            async getTokenOwner(token) {
+                const apiUrl = 'https://api.github.com/user';
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    return {
+                        login: data.login,
+                        name: data.name,
+                        id: data.id,
+                        type: data.type // 'User' or 'Organization'
+                    };
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                    return null;
+                }
+            },
+            async checkAndCreateRepo(token, repoName) {
+                const headers = {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                };
+
+                const {login} =  await githubUtils.getTokenOwner(token);
+
+                try {
+                    // Check if the repository exists
+                    const checkResponse = await fetch(`https://api.github.com/repos/${login}/${repoName}`, { headers });
+
+                    if (checkResponse.status === 200) {
+                        console.log(`Repository ${repoName} already exists.`);
+                        return true;
+                    }
+
+                    if (checkResponse.status !== 404) {
+                        throw new Error(`Unexpected status code: ${checkResponse.status}`);
+                    }
+
+                    // If we reach here, the repository doesn't exist, so let's create it
+                    const createResponse = await fetch('https://api.github.com/user/repos', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            name: repoName,
+                            private: false // Set to true if you want a private repository
+                        })
+                    });
+
+                    if (createResponse.status === 201) {
+                        console.log(`Repository ${repoName} created successfully.`);
+                        return true;
+                    } else {
+                        throw new Error(`Failed to create repository. Status: ${createResponse.status}`);
+                    }
+
+                    // Check if GitHub Pages is already enabled
+                    const checkPageResponse = await fetch(`https://api.github.com/repos/${login}/${repoName}/pages`, { headers });
+
+                    if (checkPageResponse.status === 200) {
+                        console.log('GitHub Pages is already enabled.');
+                    } else if (checkPageResponse.status === 404) {
+                        // GitHub Pages is not enabled, so let's enable it
+                        const enableResponse = await fetch(`https://api.github.com/repos/${login}/${repoName}/pages`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                source: {
+                                    branch: 'main', // or 'master', depending on your default branch name
+                                    path: '/' // root directory
+                                }
+                            })
+                        });
+
+                        if (enableResponse.status === 201) {
+                            console.log('GitHub Pages enabled successfully.');
+                        } else {
+                            throw new Error(`Failed to enable GitHub Pages. Status: ${enableResponse.status}`);
+                        }
+                    } else {
+                        throw new Error(`Unexpected status when checking GitHub Pages: ${checkPageResponse.status}`);
+                    }
+
+                } catch (error) {
+                    console.error('Error:', error.message);
+                    return false;
+                }
+            },
+
+            async updateIndexHtml(token, repoName, content) {
+                const headers = {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                };
+                const {login} =  await githubUtils.getTokenOwner(token);
+
+
+                try {
+                    // First, get the current file (if it exists)
+                    const getFileResponse = await fetch(`https://api.github.com/repos/${login}/${repoName}/contents/index.html`, { headers });
+                    const fileData = await getFileResponse.json();
+
+                    const encodedContent = btoa(content); // Base64 encode the content
+
+                    let body = {
+                        message: 'Update index.html',
+                        content: encodedContent,
+                        branch: 'main' // or 'master', depending on your default branch name
+                    };
+
+                    // If the file already exists, we need to provide its SHA
+                    if (getFileResponse.status === 200) {
+                        body.sha = fileData.sha;
+                    }
+
+                    // Create or update the index.html file in the repository
+                    const createFileResponse = await fetch(`https://api.github.com/repos/${login}/${repoName}/contents/index.html`, {
+                        method: 'PUT',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+
+                    if (createFileResponse.status === 200 || createFileResponse.status === 201) {
+                        console.log('index.html file created or updated successfully.');
+                        return true;
+                    } else {
+                        throw new Error(`Failed to create or update index.html file. Status: ${createFileResponse.status}`);
+                    }
+
+                } catch (error) {
+                    console.error('Error:', error.message);
+                    return false;
+                }
+            },
+
+            async monitorPagePublishStatus(token, repoName) {
+                const headers = {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                };
+                const {login} =  await githubUtils.getTokenOwner(token);
+
+
+                console.log('Monitoring page publish status...');
+
+                while (true) {
+                    try {
+                        const response = await fetch(`https://api.github.com/repos/${login}/${repoName}/pages`, { headers });
+                        const pageData = await response.json();
+
+                        if (response.status === 200) {
+                            if (pageData.status === 'built') {
+                                console.log('Page successfully published!');
+                                console.log(`GitHub Page URL: ${pageData.html_url}`);
+                                return true;
+                            } else {
+                                console.log(`Current status: ${pageData.status}. Waiting...`);
+                            }
+                        } else {
+                            throw new Error(`Failed to get GitHub Pages status. Status: ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error.message);
+                        return false;
+                    }
+
+                    // Wait for 5 seconds before checking again
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                }
+            }
+        }
+
+
+
+
+
+        async function pack() {
+
+            const githubToken = document.getElementById('githubToken').value;
+            const repoName = document.getElementById('repoName').value;
+            const markdown = document.getElementById('markdown').value;
+            const password = document.getElementById('password').value;
+
+
+
+            const data = {
+                githubToken,
+                repoName,
+                markdown
+            };
+            const encryptedData = await cryptoUtils.encrypt(JSON.stringify(data), password);
+            initialSnapShot.intialDocument.getElementById('secretData').innerHTML = encryptedData;
+
+            return  initialSnapShot.intialDocument.documentElement.outerHTML;
+
+        }
+        async function unpack() {
+            const encryptedData = document.getElementById('secretData').innerHTML;
+            const password = document.getElementById('password')?.value;
+            const data = JSON.parse(await cryptoUtils.decrypt(encryptedData, password));
+
+            document.getElementById('githubToken').value = data.githubToken;
+            document.getElementById('repoName').value = data.repoName;
+            document.getElementById('markdown').value = data.markdown;
+        }
+
+        async function save() {
+            const newDocumentString = await pack();
+            const githubToken = document.getElementById('githubToken').value;
+            const repoName = document.getElementById('repoName').value;
+            document.getElementById('message').innerHTML = 'waiting last publish complete';
+            await githubUtils.monitorPagePublishStatus(githubToken, repoName);
+            document.getElementById('message').innerHTML = 'publish complete';
+
+            if (!await githubUtils.updateIndexHtml(githubToken, repoName, newDocumentString)) {
+                document.getElementById('message').innerHTML = 'commit failed';
+                return;
+            }
+            document.getElementById('message').innerHTML = 'waiting publish complete';
+            await githubUtils.monitorPagePublishStatus(githubToken, repoName);
+            document.getElementById('message').innerHTML = 'publish complete';
+        }
+
+        async function onDecryptClicked() {
+            await unpack();
+            document.getElementById('main').classList = "edit"
+        }
+
+        async function onSetupClicked() {
+            const githubToken = document.getElementById('githubToken')?.value;
+            const repoName = document.getElementById('repoName')?.value;
+            const password = document.getElementById('password')?.value;
+            if (!await githubUtils.checkAndCreateRepo(githubToken, repoName)) {
+                document.getElementById('message').innerHTML = 'create repo failed'
+                return;
+            }
+            await save();
+        }
+
+
+
+
+
+        window.onload = () => {
+            initialSnapShot.intialDocument = document.cloneNode(true);
+            const secretData = document.getElementById('secretData').innerHTML;
+            if (!secretData) {
+                document.getElementById('main').classList = "setup"
+            } else {
+                document.getElementById('main').classList = "decrypt"
+            }
+
+        }
+
+    </script>
+
+    <style>
+        div#secretData {
+            display: none;
+        }
+
+        input,
+        button {
+            display: none;
+        }
+
+        #message {
+            display: initial;
+        }
+
+        div#main.setup {
+
+            #githubToken,
+            #repoName,
+            #password,
+            #setupButton {
+                display: initial;
+            }
+        }
+
+        div#main.decrypt {
+
+            #password,
+            #decryptButton {
+                display: initial;
+            }
+        }
+
+        div#main.edit {
+            #markdown {
+                display: initial;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="secretData">kqPjSocdJrODPePexHbOMgh8r9wDcBAebbjqFjlvNMOxaKVvFdBf2l6lQkB61bOHfBWckRpMgJQqrHr13bEfUvfH5MfwJNBNgFOi9nF2Sn+FAdz780YczTIDKBKB6W7fDipIWGuIepd4o44ljh+EK6OYROELOzdZ+kf9DxrEiU1UiVaV</div>
+
+    <div id="main">
+        <input type="text" id="githubToken" placeholder="GitHub Personal Access Token">
+        <input type="text" id="repoName" placeholder="Repo Name">
+        <input type="password" id="password" placeholder="Password">
+        <input type="text" id="markdown">
+        <button id="setupButton" onclick="onSetupClicked()">Setup</button>
+        <button id="decryptButton" onclick="onDecryptClicked()">Decrypt</button>
+        <div id="message"></div>
+
+
+
+    </div>
+
+
+</body></html>
