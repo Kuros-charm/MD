@@ -248,7 +248,7 @@
                         const pageData = await response.json();
 
                         if (response.status === 200) {
-                            if ((!sha || pageData.sha === sha) &&
+                            if ((!sha || pageData.commit === sha) &&
                                 pageData.status === 'built') {
                                 console.log('Page successfully published!');
                                 console.log(`GitHub Page URL: ${pageData.html_url}`);
@@ -397,7 +397,7 @@
 </head>
 
 <body>
-    <div id="secretData">ApiST7p8SwNgeJiB5SjOA01WqcOmY2BphfzkzP/18/qoREvJqTFiK65Sat4Fqeerf7kya37RgiwBN7EAQQ6aD4KPnzGG9R6KnXHFzV+X1H54iJWDbS/G+tWsfJZWtcoQB9LT1pCFUtSl3wW/jci3Q5b4fC5BdVM9+jBVn/rObWMKlJ6a</div>
+    <div id="secretData">ZIcbE8fBguHVsAYmfdsrBCYxAPfu1cUsIG9KKOHb9OYyPedkYdoM5W/9xr+bfBLO15WBQQhliTTACPggxi3j1HhVya+e3C8dJ8d4kXyvkpE2C/2BdpfiqqwkofIUB6/XvwLRC78/JYR9lz7IuKDKplNJwI5l9RjDTctZpBUBvoqMz7+u</div>
 
     <div id="main">
         <input type="text" id="githubToken" placeholder="GitHub Personal Access Token">
