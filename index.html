@@ -216,10 +216,12 @@
                         headers,
                         body: JSON.stringify(body)
                     });
+                    const createFileData = await response.json();
+ 
 
                     if (createFileResponse.status === 200 || createFileResponse.status === 201) {
                         console.log('index.html file created or updated successfully.');
-                        return true;
+                        return createFileData.commit.sha;
                     } else {
                         throw new Error(`Failed to create or update index.html file. Status: ${createFileResponse.status}`);
                     }
@@ -230,7 +232,7 @@
                 }
             },
 
-            async monitorPagePublishStatus(token, repoName) {
+            async monitorPagePublishStatus(token, repoName, sha) {
                 const headers = {
                     'Authorization': `token ${token}`,
                     'Accept': 'application/vnd.github.v3+json'
@@ -246,7 +248,8 @@
                         const pageData = await response.json();
 
                         if (response.status === 200) {
-                            if (pageData.status === 'built') {
+                            if ((!sha || pageData.sha === sha) &&
+                                pageData.status === 'built') {
                                 console.log('Page successfully published!');
                                 console.log(`GitHub Page URL: ${pageData.html_url}`);
                                 return true;
@@ -309,13 +312,13 @@
             await githubUtils.monitorPagePublishStatus(githubToken, repoName);
 
             document.getElementById('message').innerHTML = 'committing';
-            if (!await githubUtils.updateIndexHtml(githubToken, repoName, newDocumentString)) {
+            const commitSha = await githubUtils.updateIndexHtml(githubToken, repoName, newDocumentString);
+            if (!commitSha) {
                 document.getElementById('message').innerHTML = 'commit failed';
                 return;
             }
             document.getElementById('message').innerHTML = 'publishing';
-            await new Promise(res => setTimeout(res, 10*1000))
-            await githubUtils.monitorPagePublishStatus(githubToken, repoName);
+            await githubUtils.monitorPagePublishStatus(githubToken, repoName, commitSha);
             document.getElementById('message').innerHTML = 'publish complete';
         }
 
@@ -394,7 +397,7 @@
 </head>
 
 <body>
-    <div id="secretData">j2jxFHXWWsL527YC6rdJqKoLCTkZPGPMtCVue3esE2WM1Jaq6Aatu6qUmTKg9bY40Eb5VtKAEaaoy+ln1hXdnCUx8bIS0WDWuWcOWaICt60H4Z0yMOesfO+bYlrvlwRWdgIhhW1b9HlcwsOdmQCCBSQ7+4eaTNxdliBK1KAqT6i9ne6/</div>
+    <div id="secretData">2ucMJ38Gm+mnmfVSBBmB+0cECJsZK7BH3SbGbbm48U2hS+SKVEpSigHIb16TJX1dfVjg0zUzHoJHOoKeuyhgnPGz46i70CWupzdUOYG+iPGcJrYJiBCZHFK7UBXNbYxyW8BYlFId3+xhOsMJYIs8KL5juezeQRipUDrU6VKnytP1hG7h</div>
 
     <div id="main">
         <input type="text" id="githubToken" placeholder="GitHub Personal Access Token">
