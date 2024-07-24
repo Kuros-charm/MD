@@ -314,6 +314,7 @@
                 return;
             }
             document.getElementById('message').innerHTML = 'publishing';
+            await new Promise(res => setTimeout(res, 10*1000))
             await githubUtils.monitorPagePublishStatus(githubToken, repoName);
             document.getElementById('message').innerHTML = 'publish complete';
         }
@@ -393,7 +394,7 @@
 </head>
 
 <body>
-    <div id="secretData">PgB5X3D+yiRVBuBmDyLIzfL71WqpqjA/jIv9dRyyWpsAQsEhIR0xPPAJrboZ1jvFNg3q+cX39rAz2nEg+UJYYZJ47WoTbbFT5CnAPF/2VtSOTnE7R9TVQgG0WJl2wRo7uYQvLOfV4HuPY5zmbRoF3T6Ia3PAoLw/TeY/84RGVpjBP8H/</div>
+    <div id="secretData">VgfsfykwbrgcujoQLoGIlr8t83KJKhLTW0ifABq/hFipB9Xre80sRO6rXb8pYKfzhPy4ydytFQiAbdbk02Sngr1Pu+WxG9IvidgV8RlLx0AWnrlso/adnrQB0tvMT7oVCewlceftw9JoMwUa3qE+p1cPZ9cDyFeV7pnQAVpRLiUL+CDk</div>
 
     <div id="main">
         <input type="text" id="githubToken" placeholder="GitHub Personal Access Token">
