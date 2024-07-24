@@ -267,6 +267,21 @@
                     // Wait for 5 seconds before checking again
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 }
+            },
+
+            async getPageUrl(token, repoName){
+                const headers = {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                };
+                const {login} =  await githubUtils.getTokenOwner(token);
+                const checkPageResponse = await fetch(`https://api.github.com/repos/${login}/${repoName}/pages`, { headers });
+                const pageResponseData = await checkPageResponse.json();
+
+                if (checkPageResponse.status === 200) {
+                   return pageResponseData.html_url;
+                }
+                return null;
             }
         }
 
@@ -319,7 +334,7 @@
             }
             document.getElementById('message').innerHTML = 'publishing';
             await githubUtils.monitorPagePublishStatus(githubToken, repoName, commitSha);
-            document.getElementById('message').innerHTML = 'publish complete';
+            document.getElementById('message').innerHTML = `publish complete, url:${await githubUtils.getPageUrl(githubToken, repoName)}`;
         }
 
         async function onDecryptClicked() {
@@ -397,7 +412,7 @@
 </head>
 
 <body>
-    <div id="secretData">ZIcbE8fBguHVsAYmfdsrBCYxAPfu1cUsIG9KKOHb9OYyPedkYdoM5W/9xr+bfBLO15WBQQhliTTACPggxi3j1HhVya+e3C8dJ8d4kXyvkpE2C/2BdpfiqqwkofIUB6/XvwLRC78/JYR9lz7IuKDKplNJwI5l9RjDTctZpBUBvoqMz7+u</div>
+    <div id="secretData">C3cE+CISwazI104CixcGX5P9dsh/Ttzb5deRut6ef52AvfusoD0YeY0vG9P5/+rbQmdtEzOz3AtU0rdOepXzg8gPdp1rhfuyEArljRWpWHYmQi9llLfonLQZr0jJGRQ3FmcoCyPwawCYaUEyi8oE2XqGKX60QrzDf1HKu2KSdSmTx+UF</div>
 
     <div id="main">
         <input type="text" id="githubToken" placeholder="GitHub Personal Access Token">
