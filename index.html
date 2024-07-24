@@ -216,7 +216,7 @@
                         headers,
                         body: JSON.stringify(body)
                     });
-                    const createFileData = await response.json();
+                    const createFileData = await createFileResponse.json();
  
 
                     if (createFileResponse.status === 200 || createFileResponse.status === 201) {
@@ -397,7 +397,7 @@
 </head>
 
 <body>
-    <div id="secretData">2ucMJ38Gm+mnmfVSBBmB+0cECJsZK7BH3SbGbbm48U2hS+SKVEpSigHIb16TJX1dfVjg0zUzHoJHOoKeuyhgnPGz46i70CWupzdUOYG+iPGcJrYJiBCZHFK7UBXNbYxyW8BYlFId3+xhOsMJYIs8KL5juezeQRipUDrU6VKnytP1hG7h</div>
+    <div id="secretData">J5SwvLtu5JhCufRmHBJTDo4Us3eQJnlqdmPRLzQ84y5sNQC4QKz3sAuqaxsVZbJAcXx1+5KI0ftVZG27KEJZ8KChiStXrZETlni4AkKQBgW8DCLtnSwwq+jrUCzXAqkBx0yBXKSTHfyxjP4RXx0eLSgMMjnmgEmPnCSPnkTcBvbeNW5n</div>
 
     <div id="main">
         <input type="text" id="githubToken" placeholder="GitHub Personal Access Token">
